@@ -5,7 +5,8 @@
 #include <unordered_map>
 
 namespace CryptoGuard {
-
+using namespace std::literals;
+namespace po = boost::program_options;
 class ProgramOptions {
 public:
     ProgramOptions();
@@ -14,29 +15,29 @@ public:
     enum class COMMAND_TYPE {
         ENCRYPT,
         DECRYPT,
-        CHECKSUM,
+        CHECKSUM
     };
 
     void Parse(int argc, char *argv[]);
 
-    COMMAND_TYPE GetCommand() const { return command_; }
-    std::string GetInputFile() const { return inputFile_; }
-    std::string GetOutputFile() const { return outputFile_; }
-    std::string GetPassword() const { return password_; }
+    [[nodiscard]] COMMAND_TYPE GetCommand() const { return command_; }
+    [[nodiscard]] std::string GetInputFile() const { return inputFile_; }
+    [[nodiscard]] std::string GetOutputFile() const { return outputFile_; }
+    [[nodiscard]] std::string GetPassword() const { return password_; }
 
 private:
     COMMAND_TYPE command_;
     const std::unordered_map<std::string_view, COMMAND_TYPE> commandMapping_ = {
         {"encrypt", ProgramOptions::COMMAND_TYPE::ENCRYPT},
         {"decrypt", ProgramOptions::COMMAND_TYPE::DECRYPT},
-        {"checksum", ProgramOptions::COMMAND_TYPE::CHECKSUM},
+        {"checksum", ProgramOptions::COMMAND_TYPE::CHECKSUM}
     };
 
     std::string inputFile_;
     std::string outputFile_;
     std::string password_;
 
-    boost::program_options::options_description desc_;
+    po::options_description desc_;
 };
 
 }  // namespace CryptoGuard

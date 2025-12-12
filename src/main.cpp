@@ -1,5 +1,8 @@
 #include "cmd_options.h"
 #include "crypto_guard_ctx.h"
+
+#include <boost/program_options.hpp>
+
 #include <algorithm>
 #include <array>
 #include <iostream>
@@ -45,7 +48,7 @@ int main(int argc, char *argv[]) {
 
         auto params = CreateChiperParamsFromPassword("12341234");
         params.encrypt = 1;
-        auto *ctx = EVP_CIPHER_CTX_new();
+        auto *ctx = EVP_CIPHER_CTX_new();  // (!) ptr
 
         // Инициализируем cipher
         EVP_CipherInit_ex(ctx, params.cipher, nullptr, params.key.data(), params.iv.data(), params.encrypt);
@@ -75,16 +78,18 @@ int main(int argc, char *argv[]) {
         }
         EVP_CIPHER_CTX_free(ctx);
         std::print("String encoded successfully. Result: '{}'\n\n", output);
-        EVP_cleanup();
+        EVP_cleanup();  // (!) очистка
         //
         // Конец примера
         //
 
         CryptoGuard::ProgramOptions options;
+        options.Parse(argc, argv);
 
         CryptoGuard::CryptoGuardCtx cryptoCtx;
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
+
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
             std::print("File encoded successfully\n");

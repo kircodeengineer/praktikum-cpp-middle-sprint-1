@@ -56,7 +56,9 @@ target_link_libraries(unit_tests
     PRIVATE
         ${PROJECT_NAME}_imp
         GTest::GTest
-        GTest::Main)
+        GTest::Main
+        # Подключаем библиотеку stdc++fs (для <experimental>)
+        stdc++fs)
 
 # Включаем тестирование
 enable_testing()

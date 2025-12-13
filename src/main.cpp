@@ -5,6 +5,7 @@
 
 #include <algorithm>
 #include <array>
+#include <fstream>
 #include <iostream>
 #include <openssl/evp.h>
 #include <print>
@@ -37,14 +38,13 @@ AesCipherParams CreateChiperParamsFromPassword(std::string_view password) {
 }
 
 int main(int argc, char *argv[]) {
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
     try {
         //
         // OpenSSL пример использования:
         //
         std::string input = "01234567890123456789";
         std::string output;
-
-        OpenSSL_add_all_algorithms();
 
         auto params = CreateChiperParamsFromPassword("12341234");
         params.encrypt = 1;
@@ -76,9 +76,9 @@ int main(int argc, char *argv[]) {
         for (int i = 0; i < outLen; ++i) {
             output.push_back(outBuf[i]);
         }
-        EVP_CIPHER_CTX_free(ctx);
+        EVP_CIPHER_CTX_free(ctx);// (!) очистка
         std::print("String encoded successfully. Result: '{}'\n\n", output);
-        EVP_cleanup();  // (!) очистка
+        
         //
         // Конец примера
         //
@@ -86,20 +86,24 @@ int main(int argc, char *argv[]) {
         CryptoGuard::ProgramOptions options;
         options.Parse(argc, argv);
 
-        CryptoGuard::CryptoGuardCtx cryptoCtx;
-
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
+
+        std::stringstream input_test;
+        std::stringstream output_test;
 
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
+            cryptoCtx.EncryptFile(input_test, output_test, "test");
             std::print("File encoded successfully\n");
             break;
 
         case COMMAND_TYPE::DECRYPT:
+            cryptoCtx.DecryptFile(input_test, output_test, "test");
             std::print("File decoded successfully\n");
             break;
 
         case COMMAND_TYPE::CHECKSUM:
+            cryptoCtx.CalculateChecksum(input_test);
             std::print("Checksum: {}\n", "CHECKSUM_NOT_IMPLEMENTED");
             break;
 

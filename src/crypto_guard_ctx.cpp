@@ -1,10 +1,12 @@
 #include "crypto_guard_ctx.h"
 
 #include <array>
+#include <cstdint>
 #include <memory>
 #include <openssl/evp.h>
 #include <print>
 #include <stdexcept>
+#include <vector>
 
 namespace CryptoGuard {
     struct AesCipherParams {
@@ -43,24 +45,76 @@ namespace CryptoGuard {
         public:
             Impl() {
                 OpenSSL_add_all_algorithms();
-                std::print("Impl created\n");
             }
 
             ~Impl() {
                 EVP_cleanup();
                 CRYPTO_cleanup_all_ex_data();
-                std::print("Impl destructed\n");
             };
             void EncryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) const {
                 std::print("EncryptFile\n");
+                static const int SUCCESS_EVP_Cipher {1};
                 if (!inStream.good())
-                    throw std::runtime_error("EncryptFile function argument inStream not int good state");
+                    throw std::runtime_error("EncryptFile function argument inStream not in good state at beginning");
 
                 if (!outStream.good())
-                    throw std::runtime_error("EncryptFile function argument outStream not int good state");
+                    throw std::runtime_error("EncryptFile function argument outStream not in good state at beginning");
 
                 AesCipherParams params {CreateChiperParamsFromPassword(password)};
                 params.encrypt = 1;
+
+                EVPCipherCtxPtr ctx(EVP_CIPHER_CTX_new());
+
+                if (!ctx)
+                    throw std::runtime_error("Failed to create cipher context");
+
+                if (EVP_CipherInit_ex(ctx.get(), 
+                params.cipher, 
+                nullptr, 
+                params.key.data(), 
+                params.iv.data(), 
+                params.encrypt) != SUCCESS_EVP_Cipher)
+                    throw std::runtime_error("Failed to initialize cipher");
+                
+                const size_t inOutBufferSize {4096};
+                std::vector<std::uint8_t> inBuf(inOutBufferSize);
+                std::vector<std::uint8_t> outBuf(inOutBufferSize + EVP_MAX_BLOCK_LENGTH);
+                int outLen {};
+
+                while (inStream.read(reinterpret_cast<char*>(inBuf.data()), inOutBufferSize)){
+                    auto bytesRead {inStream.gcount()};
+
+                    if (EVP_CipherUpdate(ctx.get(), outBuf.data(), &outLen, inBuf.data(), static_cast<int>(bytesRead)) != SUCCESS_EVP_Cipher)
+                        throw std::runtime_error("Failed to initialize cipher");
+
+                    if (!outStream.good())
+                        throw std::runtime_error("EncryptFile function argument outStream not in good state while reading input file");
+
+                    outStream.write(reinterpret_cast<const char*>(outBuf.data()), outLen);
+
+                    if (!outStream.good())
+                        throw std::runtime_error("EncryptFile function argument outStream failed while writing encrypted file");
+                }
+
+                if (inStream.eof()){
+                    if (EVP_CipherFinal_ex(ctx.get(), outBuf.data(), &outLen) != SUCCESS_EVP_Cipher)
+                        throw std::runtime_error("EncryptFile function failed finalization of cipher");
+
+                    if (!outStream.good())
+                        throw std::runtime_error("EncryptFile function argument outStream failed after finalization of cipher");
+                
+                    outStream.write(reinterpret_cast<const char*>(outBuf.data()), outLen);
+
+                    if (!outStream.good())
+                        throw std::runtime_error("EncryptFile function argument outStream failed while writing data after finalization of cipher");
+                }
+                else {
+                    throw std::runtime_error("EncryptFile function argument inStream failed after reading full file");
+                }
+
+                if (!outStream)
+                    throw std::runtime_error("EncryptFile function argument outStream failed after completed encryption");
+                
             }
             void DecryptFile(std::iostream &inStream, std::iostream &outStream, std::string_view password) const {
                 std::print("DecryptFile\n");

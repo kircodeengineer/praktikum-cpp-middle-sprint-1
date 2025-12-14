@@ -28,9 +28,16 @@ int main(int argc, char *argv[]) {
         std::stringstream input_test;
         std::stringstream output_test;
 
+        std::ifstream inputFile("document.txt", std::ios::binary);
+        std::stringstream inputStream;
+            inputStream << inputFile.rdbuf();
+            std::ofstream outputFile("document.enc", std::ios::binary);
+            std::string password = "my-secret-password";
+            std::stringstream outputStream;
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
-            cryptoCtx.EncryptFile(input_test, output_test, "test");
+            cryptoCtx.EncryptFile(inputStream, outputStream, password);
+            outputFile << outputStream.rdbuf();
             std::print("File encoded successfully\n");
             break;
 

@@ -25,29 +25,38 @@ int main(int argc, char *argv[]) {
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
 
-        std::stringstream input_test;
-        std::stringstream output_test;
-
-        std::ifstream inputFile("document.txt", std::ios::binary);
+        std::ifstream inputFile;
         std::stringstream inputStream;
-            inputStream << inputFile.rdbuf();
-            std::ofstream outputFile("document.enc", std::ios::binary);
-            std::string password = "my-secret-password";
-            std::stringstream outputStream;
+        std::ofstream outputFile;
+        std::string password {};
+        std::stringstream outputStream;
         switch (options.GetCommand()) {
         case COMMAND_TYPE::ENCRYPT:
+            inputFile.open("document.txt", std::ios::binary);
+            inputStream << inputFile.rdbuf();
+            inputFile.close();
+            password = "my-secret-password";
             cryptoCtx.EncryptFile(inputStream, outputStream, password);
+            outputFile.open("document.enc", std::ios::binary);
             outputFile << outputStream.rdbuf();
+            outputFile.close();
             std::print("File encoded successfully\n");
             break;
 
         case COMMAND_TYPE::DECRYPT:
-            cryptoCtx.DecryptFile(input_test, output_test, "test");
+            inputFile.open("document.enc", std::ios::binary);
+            inputStream << inputFile.rdbuf();
+            inputFile.close();
+            password = "my-secret-password";
+            cryptoCtx.DecryptFile(inputStream, outputStream, password);
+            outputFile.open("document.denc", std::ios::binary);
+            outputFile << outputStream.rdbuf();
+            outputFile.close();
             std::print("File decoded successfully\n");
             break;
 
         case COMMAND_TYPE::CHECKSUM:
-            cryptoCtx.CalculateChecksum(input_test);
+            cryptoCtx.CalculateChecksum(inputStream);
             std::print("Checksum: {}\n", "CHECKSUM_NOT_IMPLEMENTED");
             break;
 

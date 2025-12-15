@@ -48,31 +48,31 @@ TEST(ProgramOptionsTest, TestHelpOptionLong){
 TEST(ProgramOptionsTest, TestUnknownCommandShort){
     ArgList argList({"-c", "log"});
     ProgramOptions progOptions;
-    EXPECT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
+    ASSERT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
 }
 
 TEST(ProgramOptionsTest, TestUnknownCommandLong){
     ArgList argList({"--command", "log"});
     ProgramOptions progOptions;
-    EXPECT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
+    ASSERT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
 }
 
 TEST(ProgramOptionsTest, TestMissingOneRequiredOption){
     ArgList argList({"-c", "encrypt", "-i", "inputFile", "-o", "outputFile"});
     ProgramOptions progOptions;
-    EXPECT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
+    ASSERT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
 }
 
 TEST(ProgramOptionsTest, TestMissingTwoRequiredOption){
     ArgList argList({"-c", "encrypt", "-i", "inputFile"});
     ProgramOptions progOptions;
-    EXPECT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
+    ASSERT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
 }
 
 TEST(ProgramOptionsTest, TestMissingAllRequiredOption){
     ArgList argList({"-c", "encrypt"});
     ProgramOptions progOptions;
-    EXPECT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
+    ASSERT_THROW(progOptions.Parse(argList.GetArgc(), argList.GetArgv()), std::invalid_argument);
 }
 
 TEST(ProgramOptionsTest, TestSuccessChecksumOption){

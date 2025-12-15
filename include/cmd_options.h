@@ -31,13 +31,14 @@ public:
         constexpr static std::string_view HELP = "help"sv;
 	};
 
-    void Parse(int argc, char *argv[]);
+    void Parse(int argc, const char *argv[]);
 
     [[nodiscard]] COMMAND_TYPE GetCommand() const { return command_; }
     [[nodiscard]] std::string GetInputFile() const { return inputFile_; }
     [[nodiscard]] std::string GetOutputFile() const { return outputFile_; }
     [[nodiscard]] std::string GetPassword() const { return password_; }
     [[nodiscard]] bool GetIsPrintHelp() const { return isPrintHelp_; }
+    [[nodiscard]] po::options_description GetOptionsDescription() const { return desc_; }
 
 private:
     COMMAND_TYPE command_;

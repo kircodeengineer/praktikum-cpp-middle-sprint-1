@@ -11,15 +11,19 @@
 #include <string>
 #include <sstream>
 
-int main(int argc, char *argv[]) {
+int main(int argc, const char *argv[]) {
     CryptoGuard::CryptoGuardCtx cryptoCtx;
     try {
         CryptoGuard::ProgramOptions options;
         options.Parse(argc, argv);
 
-        if (options.GetIsPrintHelp())
+        if (options.GetIsPrintHelp()){
+            std::stringstream ss;
+            ss << options.GetOptionsDescription() << std::endl;
+            std::print("{}", ss.str());
             return EXIT_SUCCESS;
-
+        }
+            
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
 
         auto checkFile = [](const std::string& filePath){

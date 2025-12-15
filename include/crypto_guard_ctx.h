@@ -5,7 +5,6 @@
 #include <memory>
 #include <string>
 
-
 namespace CryptoGuard {
 
 class CryptoGuardCtx {

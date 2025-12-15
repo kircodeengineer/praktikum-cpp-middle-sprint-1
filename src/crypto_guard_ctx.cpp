@@ -2,13 +2,14 @@
 
 #include <array>
 #include <cstdint>
+#include <iomanip>
 #include <memory>
 #include <openssl/evp.h>
 #include <openssl/err.h>
 #include <print>
 #include <stdexcept>
 #include <vector>
-#include <iomanip>
+
 
 namespace CryptoGuard {
     class CryptoGuardCtx::Impl {
@@ -56,7 +57,14 @@ namespace CryptoGuard {
 
             using EVPCipherCtxPtr = std::unique_ptr<EVP_CIPHER_CTX, EVPCipherCtxDeleter>;
 
-            static const int SUCCESS_EVP_Cipher {1};
+            static const int SUCCESS_EVP {1};
+
+            [[nodiscard]] std::string GetOpenSslError() const {
+                auto err {ERR_get_error()};
+                char err_buf[256];
+                ERR_error_string_n(err, err_buf, sizeof(err_buf));
+                return std::string{err_buf};
+            };
         public:
             Impl() {
                 OpenSSL_add_all_algorithms();
@@ -66,11 +74,6 @@ namespace CryptoGuard {
                 EVP_cleanup();
                 CRYPTO_cleanup_all_ex_data();
             };
-            
-            std::string CalculateChecksum(std::iostream &inStream) const { 
-                std::print("CalculateChecksum\n");
-                return "NOT_IMPLEMENTED"; 
-            }
 
             enum class CRYPT_TYPE{
                 ENCRYPT,
@@ -102,25 +105,18 @@ namespace CryptoGuard {
                 if (!ctx)
                     throw std::runtime_error("CryptFile function. Failed to create cipher context");
 
-                auto getOpenSslError = [](){
-                    unsigned long err = ERR_get_error();
-                    char err_buf[256];
-                    ERR_error_string_n(err, err_buf, sizeof(err_buf));
-                    return std::string{err_buf};
-                };
-
                 if (EVP_CipherInit_ex(ctx.get(), 
                     params.cipher, 
                     nullptr, 
                     params.key.data(), 
                     params.iv.data(), 
-                    params.encrypt) != SUCCESS_EVP_Cipher)
-                    throw std::runtime_error("CryptFile function. OpenSSL " + getOpenSslError());
+                    params.encrypt) != SUCCESS_EVP)
+                    throw std::runtime_error("CryptFile function. OpenSSL " + GetOpenSslError());
                 
                 const size_t inOutBufferSize {4096};
                 std::vector<std::uint8_t> inBuf(inOutBufferSize);
                 std::vector<std::uint8_t> outBuf(inOutBufferSize + EVP_MAX_BLOCK_LENGTH);
-                int outLen {};
+                std::int32_t outLen {};
 
                 do {
                     inStream.read(reinterpret_cast<char*>(inBuf.data()), inOutBufferSize);
@@ -130,20 +126,21 @@ namespace CryptoGuard {
                     if (!bytesRead)
                         break;
 
-                    if (EVP_CipherUpdate(ctx.get(), outBuf.data(), &outLen, inBuf.data(), static_cast<int>(bytesRead)) != SUCCESS_EVP_Cipher)
-                        throw std::runtime_error("CryptFile function. OpenSSL " + getOpenSslError());
+                    if (EVP_CipherUpdate(ctx.get(), outBuf.data(), &outLen, inBuf.data(), static_cast<int>(bytesRead)) != SUCCESS_EVP)
+                        throw std::runtime_error("CryptFile function. OpenSSL " + GetOpenSslError());
 
                     if (!outStream.good())
                         throw std::runtime_error("CryptFile function. OutStream not in good state while reading input file");
 
                     outStream.write(reinterpret_cast<const char*>(outBuf.data()), outLen);
+                    
                     if (!outStream.good())
                         throw std::runtime_error("CryptFile function. OutStream failed while writing encrypted file");
                 } while (inStream);
 
                 if (inStream.eof()){
-                    if (EVP_CipherFinal_ex(ctx.get(), outBuf.data(), &outLen) != SUCCESS_EVP_Cipher)
-                        throw std::runtime_error("CryptFile function." + getOpenSslError());
+                    if (EVP_CipherFinal_ex(ctx.get(), outBuf.data(), &outLen) != SUCCESS_EVP)
+                        throw std::runtime_error("CryptFile function. OpenSSL " + GetOpenSslError());
 
                     if (!outStream.good())
                         throw std::runtime_error("CryptFile function. OutStream failed after finalization of cipher");
@@ -161,6 +158,50 @@ namespace CryptoGuard {
                     throw std::runtime_error("CryptFile function. OutStream failed after completed encryption");
                 
                 outStream.flush();
+            }
+
+            std::string CalculateChecksum(std::iostream &inStream) const { 
+                EVPMdCtxPtr ctx(EVP_MD_CTX_new());
+                std::uint8_t mdValue[EVP_MAX_MD_SIZE];
+                std::uint32_t mdLen {};
+
+                if (!ctx)
+                    throw std::runtime_error("CalculateChecksum function. Failed to create md context");
+
+                if (EVP_DigestInit_ex2(ctx.get(), EVP_sha256(), NULL)!= SUCCESS_EVP)
+                    throw std::runtime_error("CalculateChecksum function. OpenSSL " + GetOpenSslError());
+
+                const size_t inBufferSize {4096};
+                std::vector<std::uint8_t> inBuf(inBufferSize);
+                
+                do{
+                    inStream.read(reinterpret_cast<char*>(inBuf.data()), inBufferSize);
+
+                    auto bytesRead {inStream.gcount()};
+
+                    if (!bytesRead)
+                        break;
+
+                    if (EVP_DigestUpdate(ctx.get(), inBuf.data(), bytesRead) != SUCCESS_EVP)
+                        throw std::runtime_error("CalculateChecksum function. OpenSSL " + GetOpenSslError());
+                }while (inStream);
+
+                if (inStream.eof()){
+                    if (EVP_DigestFinal_ex(ctx.get(), mdValue, &mdLen) != SUCCESS_EVP)
+                        throw std::runtime_error("CalculateChecksum function. OpenSSL " + GetOpenSslError());
+                }
+                else {
+                    throw std::runtime_error("CalculateChecksum function. InStream failed after reading full file");
+                }
+
+                std::stringstream ss;
+                ss << std::hex << std::setfill('0');
+
+                for (std::uint32_t i = 0; i < mdLen; ++i) {
+                    ss << std::setw(2) << static_cast<std::int32_t>(mdValue[i]);
+                }
+
+                return ss.str(); 
             }
     };
 

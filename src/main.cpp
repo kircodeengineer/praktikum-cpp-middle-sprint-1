@@ -3,15 +3,13 @@
 
 #include <boost/program_options.hpp>
 
-#include <algorithm>
-#include <array>
 #include <cstdlib>
+#include <filesystem> 
 #include <fstream>
-#include <iostream>
-#include <openssl/evp.h>
 #include <print>
 #include <stdexcept>
 #include <string>
+#include <sstream>
 
 int main(int argc, char *argv[]) {
     CryptoGuard::CryptoGuardCtx cryptoCtx;
@@ -19,54 +17,62 @@ int main(int argc, char *argv[]) {
         CryptoGuard::ProgramOptions options;
         options.Parse(argc, argv);
 
-        if (options.GetIsPrintHelp()){
+        if (options.GetIsPrintHelp())
             return EXIT_SUCCESS;
-        }
 
         using COMMAND_TYPE = CryptoGuard::ProgramOptions::COMMAND_TYPE;
 
-        std::ifstream inputFile;
-        std::stringstream inputStream;
-        std::ofstream outputFile;
-        std::string password {};
-        std::stringstream outputStream;
+        auto checkFile = [](const std::string& filePath){
+            if (!std::filesystem::exists(filePath))
+                throw std::runtime_error(filePath + " not found");
+        };
+
+        auto getInputStreamByFileBinContent = [](const std::string& filePath){
+            std::ifstream inputFile(filePath, std::ios::binary);
+            std::stringstream ss;
+            ss << inputFile.rdbuf();
+            return ss;
+        };
+
+        auto saveOutputStream = [&](std::stringstream&& ss, const std::string& filePath){
+            std::ofstream outputFile(filePath, std::ios::binary);
+            outputFile << ss.rdbuf();
+        };
+
         switch (options.GetCommand()) {
-        case COMMAND_TYPE::ENCRYPT:
-            inputFile.open("document.txt", std::ios::binary);
-            inputStream << inputFile.rdbuf();
-            inputFile.close();
-            password = "my-secret-password";
-            cryptoCtx.EncryptFile(inputStream, outputStream, password);
-            outputFile.open("document.enc", std::ios::binary);
-            outputFile << outputStream.rdbuf();
-            outputFile.close();
+        case COMMAND_TYPE::ENCRYPT:{
+            checkFile(options.GetInputFile());
+            checkFile(options.GetOutputFile());
+            auto inputStream {getInputStreamByFileBinContent(options.GetInputFile())};
+            std::stringstream outputStream;
+            cryptoCtx.EncryptFile(inputStream, outputStream, options.GetPassword());
+            saveOutputStream(std::move(outputStream), options.GetOutputFile());
             std::print("File encoded successfully\n");
             break;
-
-        case COMMAND_TYPE::DECRYPT:
-            inputFile.open("document.enc", std::ios::binary);
-            inputStream << inputFile.rdbuf();
-            inputFile.close();
-            password = "my-secret-password";
-            cryptoCtx.DecryptFile(inputStream, outputStream, password);
-            outputFile.open("document.denc", std::ios::binary);
-            outputFile << outputStream.rdbuf();
-            outputFile.close();
+        }
+        case COMMAND_TYPE::DECRYPT:{
+            checkFile(options.GetInputFile());
+            checkFile(options.GetOutputFile());
+            auto inputStream {getInputStreamByFileBinContent(options.GetInputFile())};
+            std::stringstream outputStream;
+            cryptoCtx.DecryptFile(inputStream, outputStream, options.GetPassword());
+            saveOutputStream(std::move(outputStream), options.GetOutputFile());
             std::print("File decoded successfully\n");
             break;
-
-        case COMMAND_TYPE::CHECKSUM:
-            cryptoCtx.CalculateChecksum(inputStream);
-            std::print("Checksum: {}\n", "CHECKSUM_NOT_IMPLEMENTED");
+        }
+        case COMMAND_TYPE::CHECKSUM:{
+            checkFile(options.GetInputFile());
+            auto inputStream {getInputStreamByFileBinContent(options.GetInputFile())};
+            std::print("Checksum: {}\n", cryptoCtx.CalculateChecksum(inputStream));
             break;
-
+        }
         default:
             throw std::runtime_error{"Unsupported command"};
         }
 
     } catch (const std::exception &e) {
         std::print(std::cerr, "Error: {}\n", e.what());
-        return 1;
+        return EXIT_FAILURE;
     }
 
     return EXIT_SUCCESS;

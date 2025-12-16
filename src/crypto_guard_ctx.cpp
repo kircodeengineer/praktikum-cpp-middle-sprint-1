@@ -57,7 +57,7 @@ private:
     using EVPCipherCtxPtr = std::unique_ptr<EVP_CIPHER_CTX, EVPCipherCtxDeleter>;
 
     static const int SUCCESS_EVP{1};
-
+    static const size_t BUFFER_SIZE{4096};
     [[nodiscard]] std::string GetOpenSslError() const {
         auto err{ERR_get_error()};
         char err_buf[256];
@@ -105,13 +105,12 @@ public:
             SUCCESS_EVP)
             throw std::runtime_error("CryptFile function. OpenSSL " + GetOpenSslError());
 
-        const size_t inOutBufferSize{4096};
-        std::vector<std::uint8_t> inBuf(inOutBufferSize);
-        std::vector<std::uint8_t> outBuf(inOutBufferSize + EVP_MAX_BLOCK_LENGTH);
+        std::vector<std::uint8_t> inBuf(BUFFER_SIZE);
+        std::vector<std::uint8_t> outBuf(BUFFER_SIZE + EVP_MAX_BLOCK_LENGTH);
         std::int32_t outLen{};
 
         do {
-            inStream.read(reinterpret_cast<char *>(inBuf.data()), inOutBufferSize);
+            inStream.read(reinterpret_cast<char *>(inBuf.data()), BUFFER_SIZE);
 
             auto bytesRead{inStream.gcount()};
 
@@ -164,11 +163,10 @@ public:
         if (EVP_DigestInit_ex2(ctx.get(), EVP_sha256(), NULL) != SUCCESS_EVP)
             throw std::runtime_error("CalculateChecksum function. OpenSSL " + GetOpenSslError());
 
-        const size_t inBufferSize{4096};
-        std::vector<std::uint8_t> inBuf(inBufferSize);
+        std::vector<std::uint8_t> inBuf(BUFFER_SIZE);
 
         do {
-            inStream.read(reinterpret_cast<char *>(inBuf.data()), inBufferSize);
+            inStream.read(reinterpret_cast<char *>(inBuf.data()), BUFFER_SIZE);
 
             auto bytesRead{inStream.gcount()};
 

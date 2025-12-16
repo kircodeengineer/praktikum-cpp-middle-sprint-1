@@ -10,6 +10,14 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
     add_compile_options(-fmax-errors=3)
 endif()
 
+if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    # Только для GCC
+    add_compile_options(
+        -finput-charset=UTF-8
+        -fexec-charset=CP866
+    )
+endif()
+
 # Ищем необходимые библиотеки
 find_package(OpenSSL REQUIRED)
 find_package(Boost REQUIRED COMPONENTS program_options)
@@ -48,7 +56,9 @@ target_link_libraries(unit_tests
     PRIVATE
         ${PROJECT_NAME}_imp
         GTest::GTest
-        GTest::Main)
+        GTest::Main
+        # Подключаем библиотеку stdc++fs (для <experimental>)
+        stdc++fs)
 
 # Включаем тестирование
 enable_testing()

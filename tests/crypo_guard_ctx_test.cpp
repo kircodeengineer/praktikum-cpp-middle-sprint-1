@@ -18,12 +18,14 @@ class CryptoGuardCtxTest : public ::testing::Test {
             etalon.emplace_back(static_cast<std::uint8_t>(number));
         }
         etalonEncryptedOriginalInputFile.write(reinterpret_cast<const char *>(etalon.data()), etalon.size());
+        damagedEncryptedOriginalInputFile.write(reinterpret_cast<const char *>(etalon.data()), etalon.size() - 1);
     }
 
 protected:
     std::string etalonChecksum{"6df4de4ab9d498f607d8c3cb490df2c55400137c9a7f5c65b15fb8477183a736"};
     std::stringstream etalonOriginalInputFile{"PraktikumMiddleCppSprint1"};
     std::stringstream etalonEncryptedOriginalInputFile;
+    std::stringstream damagedEncryptedOriginalInputFile;
     std::string password{"student"};
 };
 
@@ -90,4 +92,10 @@ TEST_F(CryptoGuardCtxTest, TestFailedOutputStreamDecrypt) {
     std::stringstream outputStream;
     outputStream.setstate(std::ios::failbit);
     ASSERT_THROW(cryptoCtx.DecryptFile(inputStream, outputStream, password), std::runtime_error);
+}
+
+TEST_F(CryptoGuardCtxTest, TestDamagedEncryptedDecrypt) {
+    CryptoGuard::CryptoGuardCtx cryptoCtx;
+    std::stringstream ss;
+    ASSERT_THROW(cryptoCtx.DecryptFile(damagedEncryptedOriginalInputFile, ss, password), std::runtime_error);
 }
